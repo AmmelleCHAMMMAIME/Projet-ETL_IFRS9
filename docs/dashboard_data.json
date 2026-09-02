@@ -1,0 +1,148 @@
+{
+  "generated_from": "data/generate_synthetic_data.py --n-customers 3000 --n-months 24 --seed 42",
+  "as_of_date": "2026-08-01",
+  "kpis": {
+    "total_exposure": 93393177.99,
+    "n_customers": 3000,
+    "n_accounts": 4450,
+    "default_rate_pct": 0.9,
+    "avg_utilization_pct": 16.7,
+    "psi_utilization": 0.0607,
+    "dq_pass_rate_pct": 100.0
+  },
+  "stage_distribution": {
+    "labels": [
+      "Stage 1 (sain)",
+      "Stage 2 (dégradé)",
+      "Stage 3 (déprécié)"
+    ],
+    "exposure": [
+      89599168.85,
+      2716276.78,
+      1077732.36
+    ],
+    "pct": [
+      95.9,
+      2.9,
+      1.2
+    ]
+  },
+  "exposure_by_family": {
+    "labels": [
+      "Consumer",
+      "SME",
+      "Corporate",
+      "Mortgage"
+    ],
+    "values": [
+      32484930.55,
+      30951993.44,
+      15704521.93,
+      14251732.07
+    ]
+  },
+  "exposure_by_region": {
+    "labels": [
+      "Sud",
+      "Sud-Est",
+      "Centre-Est",
+      "Grand Tunis"
+    ],
+    "values": [
+      25106600.92,
+      23429054.74,
+      23134723.04,
+      21722799.29
+    ]
+  },
+  "dpd_distribution": {
+    "labels": [
+      "0 (à jour)",
+      "1-30",
+      "31-60",
+      "61-90",
+      "91-120",
+      "120+"
+    ],
+    "values": [
+      4164,
+      100,
+      81,
+      65,
+      29,
+      11
+    ]
+  },
+  "score_distribution": {
+    "labels": [
+      "0-500",
+      "500-600",
+      "600-700",
+      "700-750",
+      "750+"
+    ],
+    "values": [
+      958,
+      534,
+      552,
+      260,
+      696
+    ]
+  },
+  "segment_distribution": {
+    "labels": [
+      "Retail",
+      "SME",
+      "Corporate"
+    ],
+    "values": [
+      2072,
+      791,
+      137
+    ]
+  },
+  "psi_series": [
+    {
+      "period": "2024Q3",
+      "psi": 0.0
+    },
+    {
+      "period": "2024Q4",
+      "psi": 0.192
+    },
+    {
+      "period": "2025Q1",
+      "psi": 0.332
+    },
+    {
+      "period": "2025Q2",
+      "psi": 0.4284
+    },
+    {
+      "period": "2025Q3",
+      "psi": 0.5094
+    },
+    {
+      "period": "2025Q4",
+      "psi": 0.5668
+    },
+    {
+      "period": "2026Q1",
+      "psi": 0.5929
+    },
+    {
+      "period": "2026Q2",
+      "psi": 0.6602
+    },
+    {
+      "period": "2026Q3",
+      "psi": 0.6702
+    }
+  ],
+  "dq_issues": {
+    "credit_limit négatif ou non numérique": 0,
+    "opening_date non convertible": 0,
+    "bureau_score hors [0,1000]": 0,
+    "clé compte manquante": 0
+  }
+}

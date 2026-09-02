@@ -1,0 +1,51 @@
+name: Test ETL Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  test-pipeline:
+    runs-on: ubuntu-latest
+    env:
+      SA_PASSWORD: ${{ secrets.CI_SA_PASSWORD || 'P@ssw0rd_CI_2026!' }}
+
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: ${{ secrets.CI_SA_PASSWORD || 'P@ssw0rd_CI_2026!' }}
+        ports:
+          - 1433:1433
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: pip install -r data/requirements.txt
+
+      - name: Attendre que SQL Server soit prêt
+        env:
+          SQL_PASSWORD: ${{ env.SA_PASSWORD }}
+        run: python ci/wait_for_sql.py
+
+      - name: Déployer le schéma, charger les données synthétiques et exécuter le pipeline
+        env:
+          SQL_PASSWORD: ${{ env.SA_PASSWORD }}
+        run: >
+          python ci/run_pipeline_ci.py
+          --server localhost
+          --port 1433
+          --user sa
+          --password "$SQL_PASSWORD"
+          --database ETL_BANCAIRE_IFRS9

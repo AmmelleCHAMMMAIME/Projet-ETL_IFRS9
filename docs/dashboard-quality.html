@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Qualité & Pipeline — ETL Bancaire IFRS 9</title>
+<meta name="description" content="Observabilité du pipeline ETL : catalogue de règles de qualité, taux de conformité par table, volumes ingérés, étapes d'orchestration.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/dashboard-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  .pipeline-flow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:4px;}
+  .flow-step{
+    font-family:var(--mono); font-size:11px; background:var(--ink-3); border:1px solid var(--line);
+    padding:8px 12px; border-radius:5px; color:var(--paper); white-space:nowrap;
+  }
+  .flow-step .layer{display:block; font-size:9.5px; color:var(--sage-dim); margin-top:2px;}
+  .flow-arrow{color:var(--sage-dim); font-size:14px;}
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand"><b>etl-bancaire-ifrs9</b> / dashboards</div>
+  <div class="navlinks">
+    <a href="index.html">← Vue d'ensemble</a>
+    <a href="dashboards.html">Tous les dashboards</a>
+    <a href="dashboard-portfolio.html">Portefeuille</a>
+    <a href="dashboard-quality.html" class="active">Qualité &amp; pipeline</a>
+    <a href="dashboard-drift.html">Dérive &amp; monitoring</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="page-head">
+    <div class="eyebrow">Dashboard 2 / 3 — Observabilité data engineering</div>
+    <h1>Qualité des données &amp; orchestration du pipeline</h1>
+    <p class="subhead" id="subhead">Chargement des métriques…</p>
+  </header>
+
+  <div id="content" style="display:none;">
+    <div class="kpi-grid" id="kpi-grid"></div>
+
+    <div class="panels">
+      <div class="panel full">
+        <h2>Étapes de l'orchestrateur (etl.usp_run_full_etl)</h2>
+        <div class="panel-sub">Séquence réelle exécutée à chaque run, avec transaction et journalisation par étape (etl.etl_step_log)</div>
+        <div class="pipeline-flow" id="pipeline-flow"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Volume ingéré par table (staging)</h2>
+        <div class="panel-sub">Nombre de lignes chargées sur l'échantillon de référence</div>
+        <div class="chart-box"><canvas id="chart-volumes"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Volume de transactions par mois</h2>
+        <div class="panel-sub">Série temporelle réelle de la donnée synthétique — reflète le rythme d'ingestion staging</div>
+        <div class="chart-box"><canvas id="chart-monthly"></canvas></div>
+      </div>
+
+      <div class="panel full">
+        <h2>Taux de conformité par table</h2>
+        <div class="panel-sub">Résultat de l'application des règles dq.dq_rules (même logique que sql/06_proc_cleanse_and_validate.sql)</div>
+        <table class="data-table" id="quality-table"></table>
+      </div>
+
+      <div class="panel full">
+        <h2>Catalogue de règles de qualité (dq.dq_rules)</h2>
+        <div class="panel-sub">Règles déclaratives — ajouter une règle ne nécessite pas de redéployer le code</div>
+        <table class="data-table" id="rules-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading" id="loading-msg">Chargement des métriques…</div>
+
+  <footer>
+    <p>
+      Métriques calculées sur le même échantillon synthétique que les autres dashboards
+      (<code id="source-note">data/generate_synthetic_data.py</code>). Le catalogue de règles
+      et la séquence d'orchestration sont extraits directement du code SQL du dépôt
+      (<code>sql/02_data_quality_and_orchestration_ddl.sql</code>, <code>sql/12_proc_orchestration.sql</code>) —
+      pas de données inventées.
+    </p>
+  </footer>
+</div>
+
+<script src="assets/dashboard-common.js"></script>
+<script>
+fetch("dashboard_quality_data.json")
+  .then(r => r.json())
+  .then(render)
+  .catch(err => {
+    document.getElementById("loading-msg").textContent =
+      "Impossible de charger dashboard_quality_data.json — vérifie qu'il est bien présent dans /docs.";
+    console.error(err);
+  });
+
+function render(data){
+  document.getElementById("loading-msg").style.display = "none";
+  document.getElementById("content").style.display = "block";
+  document.getElementById("subhead").innerHTML =
+    `Généré via <code>${data.generated_from}</code>`;
+  document.getElementById("source-note").textContent = data.generated_from;
+
+  const totalVolume = Object.values(data.volumes).reduce((a,b) => a+b, 0);
+  const kpis = [
+    { label: "Lignes contrôlées", value: fmtInt(data.total_rows_checked), cls: "" },
+    { label: "Lignes en quarantaine", value: fmtInt(data.total_rows_quarantined), cls: data.total_rows_quarantined > 0 ? "amber" : "teal" },
+    { label: "Taux de conformité global", value: data.overall_pass_rate_pct + "%", cls: "teal" },
+    { label: "Tables surveillées", value: data.quality_by_table.length, cls: "" },
+    { label: "Règles DQ actives", value: data.rule_catalog.length, cls: "" },
+    { label: "Volume total ingéré", value: fmtInt(totalVolume), cls: "" },
+  ];
+  document.getElementById("kpi-grid").innerHTML = kpis.map(item => `
+    <div class="kpi"><div class="label">${item.label}</div><div class="value ${item.cls}">${item.value}</div></div>`).join("");
+
+  document.getElementById("pipeline-flow").innerHTML = data.pipeline_steps.map((s, i) => `
+    ${i > 0 ? '<span class="flow-arrow">→</span>' : ''}
+    <div class="flow-step">${s.step}<span class="layer">${s.layer}</span></div>
+  `).join("");
+
+  if (!assertChartJsLoaded()) return;
+
+  new Chart(document.getElementById("chart-volumes"), {
+    type: "bar",
+    data: {
+      labels: Object.keys(data.volumes),
+      datasets: [{ data: Object.values(data.volumes), backgroundColor: [PALETTE.teal, PALETTE.amber, PALETTE.blue, "#7FA98C"], borderRadius: 3 }],
+    },
+    options: {
+      indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { grid: { color: PALETTE.grid }, ticks: { callback: fmtInt } }, y: { grid: { display: false } } },
+    },
+  });
+
+  new Chart(document.getElementById("chart-monthly"), {
+    type: "line",
+    data: {
+      labels: data.txn_by_month.labels,
+      datasets: [{ data: data.txn_by_month.values, borderColor: PALETTE.teal, backgroundColor: "rgba(46,156,126,0.12)", fill: true, tension: 0.25, pointRadius: 2 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45, font: { size: 9 }, maxTicksLimit: 8 } }, y: { grid: { color: PALETTE.grid }, beginAtZero: true } },
+    },
+  });
+
+  document.getElementById("quality-table").innerHTML =
+    "<tr><th>Table</th><th>Lignes contrôlées</th><th>Quarantaine</th><th>Conformité</th></tr>" +
+    data.quality_by_table.map(t => `
+      <tr>
+        <td class="mono">${t.table}</td>
+        <td class="mono">${fmtInt(t.rows_checked)}</td>
+        <td class="mono">${fmtInt(t.rows_quarantined)}</td>
+        <td><span class="badge ${t.pass_rate_pct >= 99 ? 'ok' : t.pass_rate_pct >= 95 ? 'warn' : 'bad'}">${t.pass_rate_pct}%</span></td>
+      </tr>`).join("");
+
+  document.getElementById("rules-table").innerHTML =
+    "<tr><th>Table</th><th>Colonne</th><th>Type de règle</th><th>Sévérité</th></tr>" +
+    data.rule_catalog.map(r => `
+      <tr>
+        <td class="mono">${r.table}</td>
+        <td class="mono">${r.column}</td>
+        <td class="mono">${r.type}</td>
+        <td><span class="badge ${r.severity === 'ERROR' ? 'bad' : 'warn'}">${r.severity}</span></td>
+      </tr>`).join("");
+}
+</script>
+</body>
+</html>

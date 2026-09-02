@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Dérive & Monitoring — ETL Bancaire IFRS 9</title>
+<meta name="description" content="Monitoring de la dérive statistique (PSI) des variables d'entrée du modèle de risque de crédit, multi-features, dans le temps.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/dashboard-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  .methodology{
+    font-size:12.5px; color:var(--sage-dim); background:var(--ink-3); border:1px solid var(--line);
+    border-radius:6px; padding:14px 16px; margin:18px 0 28px; max-width:90ch;
+  }
+  .methodology b{color:var(--paper);}
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand"><b>etl-bancaire-ifrs9</b> / dashboards</div>
+  <div class="navlinks">
+    <a href="index.html">← Vue d'ensemble</a>
+    <a href="dashboards.html">Tous les dashboards</a>
+    <a href="dashboard-portfolio.html">Portefeuille</a>
+    <a href="dashboard-quality.html">Qualité &amp; pipeline</a>
+    <a href="dashboard-drift.html" class="active">Dérive &amp; monitoring</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="page-head">
+    <div class="eyebrow">Dashboard 3 / 3 — Monitoring de modèle</div>
+    <h1>Dérive statistique des variables de risque</h1>
+    <p class="subhead" id="subhead">Chargement des métriques…</p>
+  </header>
+
+  <div class="methodology" id="methodology"></div>
+
+  <div id="content" style="display:none;">
+    <div class="panels">
+      <div class="panel full">
+        <h2>Statut de dérive par variable</h2>
+        <div class="panel-sub">PSI courant (dernier trimestre observé) vs. seuils standards</div>
+        <table class="data-table" id="status-table"></table>
+      </div>
+
+      <div class="panel full">
+        <h2>PSI dans le temps — comparaison multi-variables</h2>
+        <div class="panel-sub">Chaque variable comparée à sa propre période de référence (T1)</div>
+        <div class="chart-box tall"><canvas id="chart-psi-multi"></canvas></div>
+      </div>
+
+      <div class="panel full">
+        <h2>Distribution comparée — ratio d'utilisation du crédit</h2>
+        <div class="panel-sub">Référence (T1) vs. période courante — la variable en dérive la plus marquée</div>
+        <div class="chart-box tall"><canvas id="chart-dist-compare"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading" id="loading-msg">Chargement des métriques…</div>
+
+  <footer>
+    <p>
+      Métriques calculées sur le même échantillon synthétique que les autres dashboards
+      (<code id="source-note">data/generate_synthetic_data.py</code>). La formule et les seuils
+      PSI reproduisent exactement <code>sql/11_proc_data_drift_detection.sql</code> —
+      étendue ici à plusieurs variables pour la démonstration.
+    </p>
+  </footer>
+</div>
+
+<script src="assets/dashboard-common.js"></script>
+<script>
+fetch("dashboard_drift_data.json")
+  .then(r => r.json())
+  .then(render)
+  .catch(err => {
+    document.getElementById("loading-msg").textContent =
+      "Impossible de charger dashboard_drift_data.json — vérifie qu'il est bien présent dans /docs.";
+    console.error(err);
+  });
+
+function render(data){
+  document.getElementById("loading-msg").style.display = "none";
+  document.getElementById("content").style.display = "block";
+  document.getElementById("subhead").innerHTML = `Généré via <code>${data.generated_from}</code>`;
+  document.getElementById("source-note").textContent = data.generated_from;
+  document.getElementById("methodology").innerHTML = `<b>Méthodologie —</b> ${data.methodology}`;
+
+  const statusBadge = (s) => s === "Dérive" ? "bad" : s === "Surveillance" ? "warn" : "ok";
+  document.getElementById("status-table").innerHTML =
+    "<tr><th>Variable</th><th>PSI courant</th><th>Statut</th></tr>" +
+    data.feature_status.map(f => `
+      <tr>
+        <td>${f.feature}</td>
+        <td class="mono">${f.current_psi.toFixed(4)}</td>
+        <td><span class="badge ${statusBadge(f.status)}">${f.status}</span></td>
+      </tr>`).join("");
+
+  const colors = { utilization_ratio: PALETTE.rust, dpd_current: PALETTE.amber, bureau_score: PALETTE.teal };
+  const datasets = data.feature_status.map(f => ({
+    label: f.feature,
+    data: data.feature_series[f.key].map(p => p.psi),
+    borderColor: colors[f.key] || PALETTE.blue,
+    backgroundColor: "transparent",
+    tension: 0.3, pointRadius: 3,
+  }));
+  const labels = data.feature_series[data.feature_status[0].key].map(p => p.period);
+  datasets.push({
+    label: "Seuil de dérive (0.25)",
+    data: labels.map(() => 0.25),
+    borderColor: PALETTE.sage, borderDash: [5, 4], pointRadius: 0, borderWidth: 1.2,
+  });
+
+  if (!assertChartJsLoaded()) return;
+
+  new Chart(document.getElementById("chart-psi-multi"), {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10.5 } } } },
+      scales: { x: { grid: { color: PALETTE.grid } }, y: { grid: { color: PALETTE.grid }, beginAtZero: true } },
+    },
+  });
+
+  new Chart(document.getElementById("chart-dist-compare"), {
+    type: "bar",
+    data: {
+      labels: data.utilization_distribution.labels,
+      datasets: [
+        { label: `Référence (${data.reference_period})`, data: data.utilization_distribution.reference, backgroundColor: "rgba(169,184,172,0.45)", borderRadius: 2 },
+        { label: "Période courante", data: data.utilization_distribution.current, backgroundColor: PALETTE.rust, borderRadius: 2 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10.5 } } } },
+      scales: {
+        x: { grid: { display: false }, title: { display: true, text: "Ratio d'utilisation (borne inf. du bin)", font: { size: 10.5 } } },
+        y: { grid: { color: PALETTE.grid }, beginAtZero: true, title: { display: true, text: "Nombre de comptes", font: { size: 10.5 } } },
+      },
+    },
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETL Bancaire IFRS 9 — Pipeline de risque de crédit</title>
+<meta name="description" content="Pipeline ETL T-SQL pour la préparation de données de risque de crédit sous IFRS 9 — architecture auditable, historisée, instrumentée pour la détection de dérive.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500;1,9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #0F1A16;
+    --ink-2: #16241F;
+    --paper: #F3EEE1;
+    --paper-2: #E9E2CE;
+    --teal: #2E9C7E;
+    --teal-dim: #1F6E56;
+    --amber: #D98B3E;
+    --rust: #BD5B3F;
+    --sage: #A9B8AC;
+    --sage-dim: #6E7C71;
+    --line: rgba(169,184,172,0.22);
+    --serif: "Fraunces", Georgia, serif;
+    --sans: "IBM Plex Sans", -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--ink); color:var(--sage);
+    font-family:var(--sans); line-height:1.6; font-size:16px;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--teal);}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 28px;}
+
+  /* ---------- nav ---------- */
+  nav.top{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:22px 28px; border-bottom:1px solid var(--line);
+  }
+  nav.top .brand{font-family:var(--mono); font-size:13px; letter-spacing:.04em; color:var(--sage);}
+  nav.top .brand b{color:var(--paper);}
+  nav.top a.repo{
+    font-family:var(--mono); font-size:13px; color:var(--paper);
+    border:1px solid var(--line); padding:7px 14px; border-radius:3px; text-decoration:none;
+  }
+  nav.top a.repo:hover{border-color:var(--teal); color:var(--teal);}
+
+  /* ---------- hero ---------- */
+  header.hero{padding:88px 0 64px; position:relative;}
+  .stamp{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--teal); border:1.5px solid var(--teal); border-radius:999px;
+    padding:7px 16px 6px; transform:rotate(-2deg);
+    animation:stamp-in .5s ease-out;
+  }
+  .stamp::before{content:"●"; font-size:8px; transform:translateY(-1px);}
+  @keyframes stamp-in{from{opacity:0; transform:rotate(-8deg) scale(.92);} to{opacity:1; transform:rotate(-2deg) scale(1);}}
+  @media (prefers-reduced-motion: reduce){ .stamp{animation:none;} }
+
+  h1.title{
+    font-family:var(--serif); font-weight:600; color:var(--paper);
+    font-size:clamp(34px, 5vw, 54px); line-height:1.08; letter-spacing:-.01em;
+    margin:26px 0 22px; max-width:15ch;
+  }
+  h1.title em{font-style:italic; color:var(--teal); font-weight:500;}
+  p.lede{font-size:18px; max-width:56ch; color:var(--sage);}
+  p.lede b{color:var(--paper); font-weight:500;}
+
+  .badges{margin-top:30px; display:flex; gap:10px; flex-wrap:wrap;}
+  .badges img{display:block; height:20px;}
+
+  .cta-row{margin-top:34px; display:flex; gap:14px; flex-wrap:wrap;}
+  .btn{
+    font-family:var(--mono); font-size:13.5px; text-decoration:none; padding:11px 20px;
+    border-radius:3px; letter-spacing:.02em;
+  }
+  .btn.primary{background:var(--teal); color:var(--ink); font-weight:600;}
+  .btn.primary:hover{background:#3fb694;}
+  .btn.ghost{border:1px solid var(--line); color:var(--paper);}
+  .btn.ghost:hover{border-color:var(--sage);}
+
+  /* ---------- conveyor (signature element) ---------- */
+  .conveyor{margin:76px 0 40px; overflow-x:auto; padding-bottom:6px;}
+  .conveyor-track{display:flex; align-items:stretch; gap:0; min-width:760px;}
+  .receipt{
+    background:var(--paper); color:var(--ink); border-radius:2px;
+    width:190px; padding:18px 16px 16px; position:relative; flex-shrink:0;
+    box-shadow:0 14px 30px -14px rgba(0,0,0,.55);
+  }
+  .receipt::before, .receipt::after{
+    content:""; position:absolute; left:0; right:0; height:8px; background:var(--ink);
+  }
+  .receipt::before{top:-1px; clip-path:polygon(0 100%,4% 0,8% 100%,12% 0,16% 100%,20% 0,24% 100%,28% 0,32% 100%,36% 0,40% 100%,44% 0,48% 100%,52% 0,56% 100%,60% 0,64% 100%,68% 0,72% 100%,76% 0,80% 100%,84% 0,88% 100%,92% 0,96% 100%,100% 0);}
+  .receipt::after{bottom:-1px; clip-path:polygon(0 0,4% 100%,8% 0,12% 100%,16% 0,20% 100%,24% 0,28% 100%,32% 0,36% 100%,40% 0,44% 100%,48% 0,52% 100%,56% 0,60% 100%,64% 0,68% 100%,72% 0,76% 100%,80% 0,84% 100%,88% 0,92% 100%,96% 0,100% 100%);}
+  .receipt .eyebrow{font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--teal-dim);}
+  .receipt h3{font-family:var(--serif); font-size:18px; margin:8px 0 10px; font-weight:600;}
+  .receipt p{font-size:12.5px; color:#4A5850; margin:0; line-height:1.5;}
+  .receipt .tag{
+    display:inline-block; margin-top:12px; font-family:var(--mono); font-size:10.5px;
+    background:var(--paper-2); padding:3px 8px; border-radius:2px; color:var(--ink);
+  }
+  .arrow{
+    flex:0 0 44px; display:flex; align-items:center; justify-content:center;
+    color:var(--sage-dim); font-size:20px; font-family:var(--mono);
+  }
+
+  /* ---------- sections ---------- */
+  section{padding:56px 0; border-top:1px solid var(--line);}
+  .eyebrow-lg{
+    font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--amber); margin-bottom:14px;
+  }
+  h2{font-family:var(--serif); font-weight:600; color:var(--paper); font-size:28px; margin:0 0 20px;}
+  section > p{max-width:64ch; font-size:15.5px;}
+
+  /* architecture ledger table */
+  .ledger{width:100%; border-collapse:collapse; margin-top:8px;}
+  .ledger tr{border-bottom:1px dashed var(--line);}
+  .ledger tr:first-child{border-top:1px dashed var(--line);}
+  .ledger td{padding:16px 10px; vertical-align:top; font-size:14.5px;}
+  .ledger td.no{font-family:var(--mono); color:var(--sage-dim); font-size:13px; width:28px;}
+  .ledger td.layer{font-family:var(--serif); font-weight:600; color:var(--paper); width:170px; font-size:16px;}
+  .ledger td.role{color:var(--sage);}
+
+  /* schema diagram */
+  .schema-box{
+    background:var(--ink-2); border:1px solid var(--line); border-radius:6px;
+    padding:28px; margin-top:8px; overflow-x:auto;
+  }
+  .schema-box svg{display:block; margin:0 auto;}
+
+  /* techniques line items */
+  .lineitems{margin-top:8px;}
+  .lineitem{
+    display:flex; justify-content:space-between; gap:20px;
+    padding:14px 0; border-bottom:1px solid var(--line); font-size:14.5px;
+  }
+  .lineitem:first-child{border-top:1px solid var(--line);}
+  .lineitem .desc{color:var(--sage); max-width:64ch;}
+  .lineitem .desc b{color:var(--paper); font-weight:500;}
+  .lineitem .code{font-family:var(--mono); font-size:12.5px; color:var(--teal); white-space:nowrap;}
+
+  /* research pull quote */
+  blockquote{
+    font-family:var(--serif); font-style:italic; font-size:21px; color:var(--paper);
+    border-left:3px solid var(--teal); margin:18px 0 0; padding:4px 0 4px 22px; max-width:58ch;
+  }
+
+  footer{padding:44px 0 60px; border-top:1px solid var(--line);}
+  footer .row{display:flex; justify-content:space-between; flex-wrap:wrap; gap:16px; align-items:center;}
+  footer .sig{font-family:var(--mono); font-size:13px; color:var(--sage-dim);}
+  footer .links a{font-family:var(--mono); font-size:13px; margin-left:18px; text-decoration:none;}
+
+  @media (max-width:640px){
+    .receipt{width:150px;}
+    .conveyor-track{min-width:620px;}
+  }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand"><b>etl-bancaire-ifrs9</b> / risk-data-pipeline</div>
+  <div style="display:flex; gap:14px; align-items:center;">
+    <a class="repo" href="dashboards.html" style="border-color:var(--teal); color:var(--teal);">Tableaux de bord</a>
+    <a class="repo" href="https://github.com/AmmelleCHAMMMAIME/Projet_ETL_IFRS9" target="_blank" rel="noopener">Voir sur GitHub ↗</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="stamp">Audit trail complet</span>
+    <h1 class="title">Un ETL bancaire pensé comme <em>une preuve</em>, pas une démo.</h1>
+    <p class="lede">
+      Pipeline T-SQL pour la préparation de données de risque de crédit sous <b>IFRS 9</b> :
+      historisation SCD Type 2, quarantaine de qualité documentée, et détection de dérive
+      statistique (PSI) — conçu comme fondation d'un projet de recherche doctorale, pas
+      comme un exercice d'ingénierie isolé.
+    </p>
+    <div class="badges">
+      <a href="https://github.com/AmmelleCHAMMMAIME/Projet_ETL_IFRS9/actions/workflows/test-pipeline.yml" target="_blank" rel="noopener"><img src="https://github.com/AmmelleCHAMMMAIME/Projet_ETL_IFRS9/actions/workflows/test-pipeline.yml/badge.svg" alt="Test ETL Pipeline"></a>
+      <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-D98B3E?style=flat-square&labelColor=0F1A16" alt="Licence MIT"></a>
+      <img src="https://img.shields.io/badge/SQL-T--SQL%20%2F%20Azure%20SQL-A9B8AC?style=flat-square&labelColor=0F1A16" alt="T-SQL / Azure SQL">
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="dashboards.html">Voir les tableaux de bord →</a>
+      <a class="btn ghost" href="https://github.com/AmmelleCHAMMMAIME/Projet_ETL_IFRS9" target="_blank" rel="noopener">Explorer le code</a>
+      <a class="btn ghost" href="Note_de_cadrage_ETL_Bancaire_Doctorat.docx">Note de cadrage</a>
+    </div>
+
+    <div class="conveyor" aria-label="Les quatre couches du pipeline, de l'ingestion brute au feature mart">
+      <div class="conveyor-track">
+        <div class="receipt">
+          <div class="eyebrow">Couche 01</div>
+          <h3>Staging</h3>
+          <p>Ingestion brute multi-sources, sans transformation, tracée par batch_id.</p>
+          <span class="tag">raw</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="receipt">
+          <div class="eyebrow">Couche 02</div>
+          <h3>Cleansed</h3>
+          <p>Typage strict, validation déclarative, quarantaine documentée des rejets.</p>
+          <span class="tag">validated</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="receipt">
+          <div class="eyebrow">Couche 03</div>
+          <h3>Curated</h3>
+          <p>Star schema : dimensions SCD2, faits d'exposition et d'événements de crédit.</p>
+          <span class="tag">star schema</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="receipt">
+          <div class="eyebrow">Couche 04</div>
+          <h3>Feature Mart</h3>
+          <p>Indicateurs de risque par fenêtres analytiques, prêts pour le moteur PD/LGD/EAD.</p>
+          <span class="tag">ML-ready</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="pourquoi">
+    <div class="eyebrow-lg">Positionnement</div>
+    <h2>Pourquoi l'architecture de données est le sujet, pas le décor</h2>
+    <p>
+      La fiabilité d'un calcul ECL (Expected Credit Loss) dépend autant de l'architecture de
+      données que du modèle statistique en aval. Ce dépôt traite la gouvernance, l'historisation
+      et la surveillance de dérive comme des composantes de premier plan — le socle amont
+      généralement absent des publications académiques en risque de crédit, qui supposent des
+      données déjà propres et stables.
+    </p>
+    <p>
+      Il complète un moteur de modélisation PD / LGD / EAD développé en Python en fournissant
+      l'infrastructure de données reproductible qui lui manquait.
+    </p>
+  </section>
+
+  <section id="architecture">
+    <div class="eyebrow-lg">Architecture</div>
+    <h2>Quatre couches, une transaction à la fois</h2>
+    <table class="ledger">
+      <tr>
+        <td class="no">01</td>
+        <td class="layer">staging</td>
+        <td class="role">Ingestion brute multi-sources (core banking, bureau de crédit, macro-économie), sans transformation, entièrement traçable par lot d'exécution.</td>
+      </tr>
+      <tr>
+        <td class="no">02</td>
+        <td class="layer">cleansed</td>
+        <td class="role">Typage strict et dédoublonnage ; alimentée uniquement par les lignes ayant passé les règles de qualité déclaratives (dq.dq_rules).</td>
+      </tr>
+      <tr>
+        <td class="no">03</td>
+        <td class="layer">curated</td>
+        <td class="role">Star schema : dimension client historisée en SCD Type 2, faits d'exposition, d'événements de crédit et de notation.</td>
+      </tr>
+      <tr>
+        <td class="no">04</td>
+        <td class="layer">feature_mart</td>
+        <td class="role">Ratios d'utilisation, tendances de retard de paiement, volatilité — calculés par fonctions fenêtrées, prêts pour le moteur ECL.</td>
+      </tr>
+    </table>
+  </section>
+
+  <section id="schema">
+    <div class="eyebrow-lg">Modèle de données</div>
+    <h2>Star schema — exposition au risque de crédit</h2>
+    <div class="schema-box">
+      <svg viewBox="0 0 880 340" width="100%" style="max-width:880px">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#6E7C71"/>
+          </marker>
+        </defs>
+        <!-- dimension boxes -->
+        <g font-family="IBM Plex Mono, monospace" font-size="11">
+          <rect x="20" y="20" width="170" height="64" rx="4" fill="#16241F" stroke="#2E9C7E" stroke-width="1.4"/>
+          <text x="105" y="42" fill="#F3EEE1" text-anchor="middle" font-weight="600">dim_customer</text>
+          <text x="105" y="60" fill="#A9B8AC" text-anchor="middle">SCD Type 2</text>
+          <text x="105" y="74" fill="#6E7C71" text-anchor="middle" font-size="9.5">customer_key · is_current</text>
+
+          <rect x="20" y="138" width="170" height="52" rx="4" fill="#16241F" stroke="#3A4A40" stroke-width="1.2"/>
+          <text x="105" y="160" fill="#F3EEE1" text-anchor="middle" font-weight="600">dim_product</text>
+          <text x="105" y="176" fill="#6E7C71" text-anchor="middle" font-size="9.5">product_key</text>
+
+          <rect x="20" y="204" width="170" height="52" rx="4" fill="#16241F" stroke="#3A4A40" stroke-width="1.2"/>
+          <text x="105" y="226" fill="#F3EEE1" text-anchor="middle" font-weight="600">dim_branch</text>
+          <text x="105" y="242" fill="#6E7C71" text-anchor="middle" font-size="9.5">branch_key</text>
+
+          <rect x="20" y="270" width="170" height="52" rx="4" fill="#16241F" stroke="#3A4A40" stroke-width="1.2"/>
+          <text x="105" y="292" fill="#F3EEE1" text-anchor="middle" font-weight="600">dim_macro_scenario</text>
+          <text x="105" y="308" fill="#6E7C71" text-anchor="middle" font-size="9.5">scenario_key</text>
+
+          <!-- central fact -->
+          <rect x="345" y="120" width="190" height="100" rx="4" fill="#1F6E56" stroke="#2E9C7E" stroke-width="1.6"/>
+          <text x="440" y="150" fill="#F3EEE1" text-anchor="middle" font-weight="600" font-size="13">fact_exposure</text>
+          <text x="440" y="170" fill="#DDEDE6" text-anchor="middle" font-size="9.5">outstanding_balance</text>
+          <text x="440" y="184" fill="#DDEDE6" text-anchor="middle" font-size="9.5">credit_limit · dpd_current</text>
+          <text x="440" y="198" fill="#DDEDE6" text-anchor="middle" font-size="9.5">ifrs9_stage (1 / 2 / 3)</text>
+
+          <!-- other facts -->
+          <rect x="670" y="40" width="190" height="70" rx="4" fill="#16241F" stroke="#BD5B3F" stroke-width="1.3"/>
+          <text x="765" y="65" fill="#F3EEE1" text-anchor="middle" font-weight="600" font-size="12">fact_credit_event</text>
+          <text x="765" y="82" fill="#A9B8AC" text-anchor="middle" font-size="9.5">MISSED_PAYMENT · DEFAULT</text>
+          <text x="765" y="96" fill="#6E7C71" text-anchor="middle" font-size="9">dpd_at_event</text>
+
+          <rect x="670" y="230" width="190" height="70" rx="4" fill="#16241F" stroke="#D98B3E" stroke-width="1.3"/>
+          <text x="765" y="255" fill="#F3EEE1" text-anchor="middle" font-weight="600" font-size="12">fact_credit_rating_history</text>
+          <text x="765" y="272" fill="#A9B8AC" text-anchor="middle" font-size="9.5">bureau_score</text>
+          <text x="765" y="286" fill="#6E7C71" text-anchor="middle" font-size="9">internal_rating</text>
+
+          <!-- dim_date small -->
+          <rect x="345" y="20" width="190" height="46" rx="4" fill="#16241F" stroke="#3A4A40" stroke-width="1.2"/>
+          <text x="440" y="40" fill="#F3EEE1" text-anchor="middle" font-weight="600" font-size="12">dim_date</text>
+          <text x="440" y="56" fill="#6E7C71" text-anchor="middle" font-size="9">date_key · full_date</text>
+        </g>
+        <!-- connections -->
+        <g stroke="#3A4A40" stroke-width="1.3" fill="none" marker-end="url(#arrow)">
+          <path d="M190 52 L345 155"/>
+          <path d="M190 164 L345 170"/>
+          <path d="M190 230 L345 190"/>
+          <path d="M190 296 L345 210"/>
+          <path d="M440 66 L440 120"/>
+          <path d="M535 150 L670 75"/>
+          <path d="M535 195 L670 260"/>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <section id="techniques">
+    <div class="eyebrow-lg">Ce que le code démontre</div>
+    <h2>Techniques SQL, pas seulement des tables</h2>
+    <div class="lineitems">
+      <div class="lineitem">
+        <span class="desc"><b>Historisation SCD Type 2</b> — clôture et versionnement des attributs client via détection de changement.</span>
+        <span class="code">MERGE</span>
+      </div>
+      <div class="lineitem">
+        <span class="desc"><b>Hiérarchie d'exposition groupe</b> — agrégation multi-niveaux de type Bâle, avec garde-fou anti-cycle.</span>
+        <span class="code">WITH RECURSIVE_GROUP AS (...)</span>
+      </div>
+      <div class="lineitem">
+        <span class="desc"><b>Feature engineering</b> — moyennes mobiles bornées, tendance DPD, volatilité glissante.</span>
+        <span class="code">LAG · AVG OVER · STDEV</span>
+      </div>
+      <div class="lineitem">
+        <span class="desc"><b>Détection de dérive</b> — Population Stability Index entre deux fenêtres temporelles.</span>
+        <span class="code">NTILE(10) · PSI</span>
+      </div>
+      <div class="lineitem">
+        <span class="desc"><b>Ingestion tolérante aux erreurs</b> — quarantaine systématique avec charge utile JSON conservée.</span>
+        <span class="code">TRY_CONVERT · FOR JSON PATH</span>
+      </div>
+      <div class="lineitem">
+        <span class="desc"><b>Orchestration transactionnelle</b> — rollback complet et journalisation par étape en cas d'échec.</span>
+        <span class="code">TRY / CATCH · THROW</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="recherche">
+    <div class="eyebrow-lg">Fondation doctorale</div>
+    <h2>Une question de recherche, pas seulement un pipeline</h2>
+    <blockquote>
+      Dans quelle mesure une architecture de données auditable, historisée et instrumentée
+      pour la détection de dérive peut-elle améliorer la fiabilité, l'explicabilité et la
+      conformité réglementaire des estimations ECL sous IFRS 9&nbsp;?
+    </blockquote>
+    <p style="margin-top:22px;">
+      Cette problématique — développée en détail dans la note de cadrage — se décline en trois
+      axes : gouvernance de la donnée, apport de l'historisation SCD2 sur la stabilité des
+      estimations, et robustesse face à la dérive statistique des variables d'entrée.
+    </p>
+  </section>
+
+  <footer>
+    <div class="row">
+      <div class="sig">Amel Chammem — Data Scientist &amp; IT Project Manager, Groupe Elloumi (COFAT)</div>
+      <div class="links">
+        <a href="https://github.com/AmmelleCHAMMMAIME/Projet_ETL_IFRS9" target="_blank" rel="noopener">Dépôt GitHub</a>
+        <a href="Note_de_cadrage_ETL_Bancaire_Doctorat.docx">Note de cadrage</a>
+        <a href="LICENSE">Licence MIT</a>
+      </div>
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>

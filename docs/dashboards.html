@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboards — ETL Bancaire IFRS 9</title>
+<meta name="description" content="Suite de tableaux de bord : portefeuille de crédit, qualité des données et observabilité du pipeline, dérive statistique et monitoring de modèle.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/dashboard-theme.css">
+<style>
+  .cards{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin:32px 0 20px;}
+  .card{
+    background:var(--ink-2); border:1px solid var(--line); border-radius:10px; padding:26px;
+    display:flex; flex-direction:column; transition:border-color .15s;
+  }
+  .card:hover{border-color:var(--teal);}
+  .card .num{font-family:var(--mono); font-size:11px; color:var(--sage-dim); letter-spacing:.1em;}
+  .card h2{font-family:var(--serif); font-size:21px; color:var(--paper); margin:10px 0 10px; font-weight:600;}
+  .card p{font-size:13.5px; color:var(--sage); flex-grow:1; margin:0 0 18px;}
+  .card .tags{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px;}
+  .card .tag{font-family:var(--mono); font-size:10px; background:var(--ink-3); border:1px solid var(--line); padding:3px 9px; border-radius:999px; color:var(--sage-dim);}
+  .card a.go{font-family:var(--mono); font-size:12.5px; color:var(--teal); display:inline-flex; align-items:center; gap:6px;}
+  .card.teal{border-top:3px solid var(--teal);}
+  .card.amber{border-top:3px solid var(--amber);}
+  .card.rust{border-top:3px solid var(--rust);}
+  @media (max-width:900px){ .cards{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand"><b>etl-bancaire-ifrs9</b> / dashboards</div>
+  <div class="navlinks">
+    <a href="index.html">← Vue d'ensemble du projet</a>
+    <a href="https://github.com/AmmelleCHAMMMAIME/Projet_ETL_IFRS9" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="page-head">
+    <div class="eyebrow">Suite analytique</div>
+    <h1>Trois vues, trois publics, une même donnée</h1>
+    <p class="subhead">
+      Chaque dashboard répond à une question différente — celle du métier risque, celle de
+      l'ingénieur de données, et celle du monitoring de modèle. Tous calculés sur le même
+      échantillon synthétique reproductible, avec la même logique métier que le pipeline T-SQL.
+    </p>
+  </header>
+
+  <div class="cards">
+    <div class="card teal">
+      <div class="num">01 / Vue métier</div>
+      <h2>Portefeuille &amp; risque</h2>
+      <p>Exposition totale, staging IFRS 9, distributions DPD et score bureau, répartition
+         par produit et par région. La vue qu'un risk manager ouvrirait chaque matin.</p>
+      <div class="tags"><span class="tag">exposition</span><span class="tag">IFRS 9</span><span class="tag">segments</span></div>
+      <a class="go" href="dashboard-portfolio.html">Ouvrir le dashboard →</a>
+    </div>
+
+    <div class="card amber">
+      <div class="num">02 / Vue data engineering</div>
+      <h2>Qualité &amp; pipeline</h2>
+      <p>Catalogue de règles de qualité, taux de conformité par table, volumes ingérés,
+         séquence d'orchestration réelle. La vue qu'un data engineer ouvrirait pour auditer un run.</p>
+      <div class="tags"><span class="tag">DQ rules</span><span class="tag">quarantaine</span><span class="tag">orchestration</span></div>
+      <a class="go" href="dashboard-quality.html">Ouvrir le dashboard →</a>
+    </div>
+
+    <div class="card rust">
+      <div class="num">03 / Vue MLOps</div>
+      <h2>Dérive &amp; monitoring</h2>
+      <p>Population Stability Index multi-variables dans le temps, distribution comparée
+         référence vs. courant. La vue qu'un data scientist ouvrirait avant de décider
+         un ré-entraînement.</p>
+      <div class="tags"><span class="tag">PSI</span><span class="tag">drift</span><span class="tag">monitoring</span></div>
+      <a class="go" href="dashboard-drift.html">Ouvrir le dashboard →</a>
+    </div>
+  </div>
+
+  <footer>
+    <p>
+      Toutes les métriques sont calculées à partir d'un échantillon synthétique généré par
+      <code>data/generate_synthetic_data.py</code> (seed fixe, reproductible bit à bit) et
+      des scripts <code>data/compute_*.py</code>, qui répliquent en Python la logique métier
+      des procédures T-SQL du dépôt — aucune donnée bancaire réelle, aucun chiffre inventé.
+    </p>
+  </footer>
+</div>
+
+</body>
+</html>

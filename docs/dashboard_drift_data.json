@@ -1,0 +1,185 @@
+{
+  "generated_from": "data/generate_synthetic_data.py --n-customers 3000 --n-months 24 --seed 42",
+  "methodology": "PSI = Σ (cur% - ref%) × ln(cur% / ref%), 10 bins par quantile de la période de référence (T1). Seuils : <0.10 stable, 0.10-0.25 surveillance, >0.25 dérive.",
+  "reference_period": "2024Q3",
+  "feature_status": [
+    {
+      "feature": "Ratio d'utilisation du crédit",
+      "key": "utilization_ratio",
+      "current_psi": 0.6702,
+      "status": "Dérive"
+    },
+    {
+      "feature": "Retard de paiement (DPD)",
+      "key": "dpd_current",
+      "current_psi": 0.0,
+      "status": "Stable"
+    },
+    {
+      "feature": "Score bureau de crédit",
+      "key": "bureau_score",
+      "current_psi": 0.0296,
+      "status": "Stable"
+    }
+  ],
+  "feature_series": {
+    "utilization_ratio": [
+      {
+        "period": "2024Q3",
+        "psi": 0.0
+      },
+      {
+        "period": "2024Q4",
+        "psi": 0.192
+      },
+      {
+        "period": "2025Q1",
+        "psi": 0.332
+      },
+      {
+        "period": "2025Q2",
+        "psi": 0.4284
+      },
+      {
+        "period": "2025Q3",
+        "psi": 0.5094
+      },
+      {
+        "period": "2025Q4",
+        "psi": 0.5668
+      },
+      {
+        "period": "2026Q1",
+        "psi": 0.5929
+      },
+      {
+        "period": "2026Q2",
+        "psi": 0.6602
+      },
+      {
+        "period": "2026Q3",
+        "psi": 0.6702
+      }
+    ],
+    "dpd_current": [
+      {
+        "period": "2024Q3",
+        "psi": 0.0
+      },
+      {
+        "period": "2024Q4",
+        "psi": 0.0
+      },
+      {
+        "period": "2025Q1",
+        "psi": 0.0
+      },
+      {
+        "period": "2025Q2",
+        "psi": 0.0
+      },
+      {
+        "period": "2025Q3",
+        "psi": 0.0
+      },
+      {
+        "period": "2025Q4",
+        "psi": 0.0
+      },
+      {
+        "period": "2026Q1",
+        "psi": 0.0
+      },
+      {
+        "period": "2026Q2",
+        "psi": 0.0
+      },
+      {
+        "period": "2026Q3",
+        "psi": 0.0
+      }
+    ],
+    "bureau_score": [
+      {
+        "period": "2024Q3",
+        "psi": 0.0
+      },
+      {
+        "period": "2024Q4",
+        "psi": 0.0027
+      },
+      {
+        "period": "2025Q1",
+        "psi": 0.0053
+      },
+      {
+        "period": "2025Q2",
+        "psi": 0.0077
+      },
+      {
+        "period": "2025Q3",
+        "psi": 0.0115
+      },
+      {
+        "period": "2025Q4",
+        "psi": 0.0229
+      },
+      {
+        "period": "2026Q1",
+        "psi": 0.0219
+      },
+      {
+        "period": "2026Q2",
+        "psi": 0.0296
+      },
+      {
+        "period": "2026Q3",
+        "psi": 0.0296
+      }
+    ]
+  },
+  "utilization_distribution": {
+    "labels": [
+      "0.00",
+      "0.10",
+      "0.20",
+      "0.30",
+      "0.40",
+      "0.50",
+      "0.60",
+      "0.70",
+      "0.80",
+      "0.90",
+      "1.00",
+      "1.10"
+    ],
+    "reference": [
+      3698,
+      752,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "current": [
+      2644,
+      377,
+      351,
+      333,
+      219,
+      187,
+      129,
+      94,
+      52,
+      26,
+      15,
+      23
+    ]
+  }
+}

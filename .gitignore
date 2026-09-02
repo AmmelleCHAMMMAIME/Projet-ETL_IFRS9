@@ -1,0 +1,22 @@
+# Données générées / sensibles
+data/output/
+data/test_output/
+data/dashboard_sample/
+data/ci_output/
+*.csv
+
+# Environnements Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Éditeurs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Exports temporaires
+*.bak
+*.log

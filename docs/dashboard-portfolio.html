@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Portefeuille — ETL Bancaire IFRS 9</title>
+<meta name="description" content="Tableau de bord du portefeuille de crédit : exposition, staging IFRS 9, distributions — calculé sur un échantillon synthétique.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/dashboard-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand"><b>etl-bancaire-ifrs9</b> / dashboards</div>
+  <div class="navlinks">
+    <a href="index.html">← Vue d'ensemble</a>
+    <a href="dashboards.html">Tous les dashboards</a>
+    <a href="dashboard-portfolio.html" class="active">Portefeuille</a>
+    <a href="dashboard-quality.html">Qualité &amp; pipeline</a>
+    <a href="dashboard-drift.html">Dérive &amp; monitoring</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="page-head">
+    <div class="eyebrow">Dashboard 1 / 3 — Vue métier</div>
+    <h1>Portefeuille de crédit — exposition &amp; risque</h1>
+    <p class="subhead" id="subhead">Chargement des métriques…</p>
+  </header>
+
+  <div id="content" style="display:none;">
+    <div class="kpi-grid" id="kpi-grid"></div>
+
+    <div class="panels">
+      <div class="panel">
+        <h2>Exposition par staging IFRS 9</h2>
+        <div class="panel-sub">Répartition de l'exposition selon la détérioration du risque (retard de paiement)</div>
+        <div class="chart-box"><canvas id="chart-stage"></canvas></div>
+        <div class="legend-row" id="stage-legend"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Dérive statistique — Population Stability Index</h2>
+        <div class="panel-sub">Ratio d'utilisation du crédit, vs. référence T1 — seuil d'alerte à 0.25 · <a href="dashboard-drift.html">détail →</a></div>
+        <div class="chart-box"><canvas id="chart-psi"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Distribution des retards de paiement (DPD)</h2>
+        <div class="panel-sub">Nombre de comptes par tranche de jours de retard</div>
+        <div class="chart-box"><canvas id="chart-dpd"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Distribution du score bureau de crédit</h2>
+        <div class="panel-sub">Dernier relevé connu par client</div>
+        <div class="chart-box"><canvas id="chart-score"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Exposition par famille de produit</h2>
+        <div class="panel-sub">Encours total, en devise locale (TND)</div>
+        <div class="chart-box"><canvas id="chart-family"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Exposition par région</h2>
+        <div class="panel-sub">Répartition géographique de l'encours</div>
+        <div class="chart-box"><canvas id="chart-region"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Répartition des clients par segment</h2>
+        <div class="panel-sub">Retail / SME / Corporate</div>
+        <div class="chart-box short"><canvas id="chart-segment"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Conformité qualité des données</h2>
+        <div class="panel-sub">Aperçu — détail complet sur le <a href="dashboard-quality.html">dashboard Qualité →</a></div>
+        <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:14px;">
+          <span style="font-family:var(--serif); font-size:36px; color:var(--teal); font-weight:600;" id="dq-rate-value">—</span>
+          <span style="font-family:var(--mono); font-size:12px; color:var(--sage-dim);">de lignes conformes sur cet échantillon</span>
+        </div>
+        <table class="data-table" id="dq-rules-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading" id="loading-msg">Chargement des métriques…</div>
+
+  <footer>
+    <p>
+      Métriques calculées sur un échantillon synthétique généré par
+      <code id="source-note">data/generate_synthetic_data.py</code> — aucune donnée bancaire réelle.
+      La même logique métier (calcul d'exposition, staging IFRS 9, PSI) est implémentée
+      en T-SQL dans le pipeline de production (<code>sql/08_proc_load_fact_tables.sql</code>,
+      <code>sql/11_proc_data_drift_detection.sql</code>). Date de référence :
+      <code id="as-of-date">—</code>.
+    </p>
+  </footer>
+</div>
+
+<script src="assets/dashboard-common.js"></script>
+<script>
+fetch("dashboard_data.json")
+  .then(r => r.json())
+  .then(render)
+  .catch(err => {
+    document.getElementById("loading-msg").textContent =
+      "Impossible de charger dashboard_data.json — vérifie qu'il est bien présent dans /docs.";
+    console.error(err);
+  });
+
+function render(data){
+  document.getElementById("loading-msg").style.display = "none";
+  document.getElementById("content").style.display = "block";
+  document.getElementById("subhead").innerHTML =
+    `Échantillon synthétique de ${fmtInt(data.kpis.n_customers)} clients — généré via <code>${data.generated_from}</code>`;
+  document.getElementById("source-note").textContent = data.generated_from;
+  document.getElementById("as-of-date").textContent = data.as_of_date;
+
+  const k = data.kpis;
+  const kpis = [
+    { label: "Exposition totale", value: fmtMoney(k.total_exposure), cls: "" },
+    { label: "Clients", value: fmtInt(k.n_customers), cls: "" },
+    { label: "Comptes actifs", value: fmtInt(k.n_accounts), cls: "" },
+    { label: "Taux de défaut (Stage 3)", value: k.default_rate_pct + "%", cls: "rust" },
+    { label: "Utilisation moyenne", value: k.avg_utilization_pct + "%", cls: "amber" },
+    { label: "PSI (dérive, vs. T1)", value: k.psi_utilization.toFixed(3), cls: k.psi_utilization > 0.25 ? "rust" : "teal" },
+  ];
+  document.getElementById("kpi-grid").innerHTML = kpis.map(item => `
+    <div class="kpi"><div class="label">${item.label}</div><div class="value ${item.cls}">${item.value}</div></div>`).join("");
+
+  if (!assertChartJsLoaded()) return;
+
+  new Chart(document.getElementById("chart-stage"), {
+    type: "doughnut",
+    data: { labels: data.stage_distribution.labels, datasets: [{
+      data: data.stage_distribution.exposure,
+      backgroundColor: [PALETTE.teal, PALETTE.amber, PALETTE.rust],
+      borderColor: "#16241F", borderWidth: 3,
+    }]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: "68%" },
+  });
+  document.getElementById("stage-legend").innerHTML = data.stage_distribution.labels.map((l, i) => `
+    <div class="legend-chip"><span class="dot" style="background:${[PALETTE.teal,PALETTE.amber,PALETTE.rust][i]}"></span>${l} — ${data.stage_distribution.pct[i]}%</div>`).join("");
+
+  const psiSeries = data.psi_series;
+  new Chart(document.getElementById("chart-psi"), {
+    type: "line",
+    data: {
+      labels: psiSeries.map(p => p.period),
+      datasets: [
+        { label: "PSI", data: psiSeries.map(p => p.psi), borderColor: PALETTE.teal, backgroundColor: "rgba(46,156,126,0.12)", fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: PALETTE.teal },
+        { label: "Seuil d'alerte (0.25)", data: psiSeries.map(() => 0.25), borderColor: PALETTE.rust, borderDash: [5, 4], pointRadius: 0, borderWidth: 1.4 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10.5 } } } },
+      scales: { x: { grid: { color: PALETTE.grid } }, y: { grid: { color: PALETTE.grid }, beginAtZero: true } },
+    },
+  });
+
+  new Chart(document.getElementById("chart-dpd"), {
+    type: "bar",
+    data: { labels: data.dpd_distribution.labels, datasets: [{ data: data.dpd_distribution.values, backgroundColor: [PALETTE.teal, PALETTE.amber, PALETTE.amber, PALETTE.rust, PALETTE.rust, PALETTE.rust], borderRadius: 3 }]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: PALETTE.grid }, beginAtZero: true } } },
+  });
+
+  new Chart(document.getElementById("chart-score"), {
+    type: "bar",
+    data: { labels: data.score_distribution.labels, datasets: [{ data: data.score_distribution.values, backgroundColor: [PALETTE.rust, PALETTE.amber, "#7FA98C", PALETTE.teal, PALETTE.teal], borderRadius: 3 }]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: PALETTE.grid }, beginAtZero: true } } },
+  });
+
+  new Chart(document.getElementById("chart-family"), {
+    type: "bar",
+    data: { labels: data.exposure_by_family.labels, datasets: [{ data: data.exposure_by_family.values, backgroundColor: PALETTE.teal, borderRadius: 3 }]},
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => fmtMoney(ctx.raw) } } }, scales: { x: { grid: { color: PALETTE.grid }, ticks: { callback: (v) => fmtMoney(v) } }, y: { grid: { display: false } } } },
+  });
+
+  new Chart(document.getElementById("chart-region"), {
+    type: "bar",
+    data: { labels: data.exposure_by_region.labels, datasets: [{ data: data.exposure_by_region.values, backgroundColor: PALETTE.amber, borderRadius: 3 }]},
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => fmtMoney(ctx.raw) } } }, scales: { x: { grid: { color: PALETTE.grid }, ticks: { callback: (v) => fmtMoney(v) } }, y: { grid: { display: false } } } },
+  });
+
+  new Chart(document.getElementById("chart-segment"), {
+    type: "doughnut",
+    data: { labels: data.segment_distribution.labels, datasets: [{ data: data.segment_distribution.values, backgroundColor: [PALETTE.teal, PALETTE.blue, PALETTE.amber], borderColor: "#16241F", borderWidth: 3 }]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right", labels: { boxWidth: 12, font: { size: 11 } } } }, cutout: "60%" },
+  });
+
+  document.getElementById("dq-rate-value").textContent = k.dq_pass_rate_pct + "%";
+  document.getElementById("dq-rules-table").innerHTML =
+    "<tr><th>Règle</th><th>Résultat</th></tr>" +
+    Object.entries(data.dq_issues).map(([rule, count]) => `
+      <tr><td>${rule}</td><td class="mono"><span class="badge ${count===0?'ok':'bad'}">${count===0?'0 anomalie':count+' rejetée(s)'}</span></td></tr>`).join("");
+}
+</script>
+</body>
+</html>

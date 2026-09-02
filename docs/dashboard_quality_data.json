@@ -1,0 +1,156 @@
+{
+  "generated_from": "data/generate_synthetic_data.py --n-customers 3000 --n-months 24 --seed 42",
+  "rule_catalog": [
+    {
+      "table": "stg_customers",
+      "column": "customer_source_id",
+      "type": "NOT_NULL",
+      "severity": "ERROR"
+    },
+    {
+      "table": "stg_accounts",
+      "column": "credit_limit",
+      "type": "RANGE (>= 0)",
+      "severity": "ERROR"
+    },
+    {
+      "table": "stg_transactions",
+      "column": "dpd_snapshot",
+      "type": "RANGE (0-999)",
+      "severity": "WARNING"
+    },
+    {
+      "table": "stg_credit_bureau",
+      "column": "bureau_score",
+      "type": "RANGE (0-1000)",
+      "severity": "ERROR"
+    }
+  ],
+  "volumes": {
+    "stg_customers": 3000,
+    "stg_accounts": 4450,
+    "stg_transactions": 106800,
+    "stg_credit_bureau": 24000
+  },
+  "txn_by_month": {
+    "labels": [
+      "2024-09",
+      "2024-10",
+      "2024-11",
+      "2024-12",
+      "2025-01",
+      "2025-02",
+      "2025-03",
+      "2025-04",
+      "2025-05",
+      "2025-06",
+      "2025-07",
+      "2025-08",
+      "2025-09",
+      "2025-10",
+      "2025-11",
+      "2025-12",
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05",
+      "2026-06",
+      "2026-07",
+      "2026-08"
+    ],
+    "values": [
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450,
+      4450
+    ]
+  },
+  "quality_by_table": [
+    {
+      "table": "stg_customers",
+      "rows_checked": 3000,
+      "rows_quarantined": 0,
+      "pass_rate_pct": 100.0
+    },
+    {
+      "table": "stg_accounts",
+      "rows_checked": 4450,
+      "rows_quarantined": 0,
+      "pass_rate_pct": 100.0
+    },
+    {
+      "table": "stg_transactions",
+      "rows_checked": 106800,
+      "rows_quarantined": 0,
+      "pass_rate_pct": 100.0
+    },
+    {
+      "table": "stg_credit_bureau",
+      "rows_checked": 24000,
+      "rows_quarantined": 0,
+      "pass_rate_pct": 100.0
+    }
+  ],
+  "overall_pass_rate_pct": 100.0,
+  "total_rows_checked": 138250,
+  "total_rows_quarantined": 0,
+  "pipeline_steps": [
+    {
+      "step": "cleanse_customers",
+      "layer": "staging → cleansed"
+    },
+    {
+      "step": "cleanse_accounts",
+      "layer": "staging → cleansed"
+    },
+    {
+      "step": "cleanse_transactions",
+      "layer": "staging → cleansed"
+    },
+    {
+      "step": "cleanse_credit_bureau",
+      "layer": "staging → cleansed"
+    },
+    {
+      "step": "merge_dim_customer_scd2",
+      "layer": "cleansed → curated"
+    },
+    {
+      "step": "load_fact_exposure",
+      "layer": "cleansed → curated"
+    },
+    {
+      "step": "load_fact_credit_event",
+      "layer": "cleansed → curated"
+    },
+    {
+      "step": "load_fact_credit_rating_history",
+      "layer": "cleansed → curated"
+    },
+    {
+      "step": "compute_customer_risk_features",
+      "layer": "curated → feature_mart"
+    }
+  ]
+}
